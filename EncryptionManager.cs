@@ -10,32 +10,45 @@ public class EncryptionManager
     private string _logFilePath = "encryption_log.txt";
     private RichTextBox _logTextBox;
     public enum EncryptionAlgorithm { AES, DES, XOR }
-    public EncryptionManager(RichTextBox logTextBox = null)
+    private readonly Action<string> _logAction;
+
+    public EncryptionManager(Action<string> logAction = null)
     {
-        _logTextBox = logTextBox;
+        _logAction = logAction;
+    }
+
+    private void Log(string message)
+    {
+        _logAction?.Invoke($"[{DateTime.Now:HH:mm:ss}] {message}");
     }
     public void Process(string path, string key, EncryptionAlgorithm algorithm, bool encrypt, bool overwrite)
     {
         try
         {
+            Log($"Начато {(encrypt ? "шифрование" : "дешифрование")} ({algorithm}) для: {path}");
+
             if (File.Exists(path))
             {
                 ProcessFile(path, key, algorithm, encrypt, overwrite);
             }
             else if (Directory.Exists(path))
             {
+                Log($"Обработка папки: {path}");
                 foreach (var file in GetFilesFromFolder(path))
                 {
                     ProcessFile(file, key, algorithm, encrypt, overwrite);
                 }
             }
+
+            Log($"Операция завершена успешно!");
         }
         catch (Exception ex)
         {
-            Log($"Ошибка: {ex.Message}");
+            Log($"ОШИБКА: {ex.Message}");
             throw;
         }
     }
+
     private byte[] ReadFile(string path)
     {
         try
@@ -145,15 +158,19 @@ public class EncryptionManager
     }
     private byte[] NormalizeKey(string key, int requiredLength)
     {
-        return Encoding.UTF8.GetBytes(key.PadRight(requiredLength, '0')[..requiredLength]);
+        if (string.IsNullOrEmpty(key))
+            throw new ArgumentException("Ключ не может быть пустым");
+
+        // Хешируем ключ чтобы получить нужную длину
+        using (var sha256 = SHA256.Create())
+        {
+            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+            byte[] hash = sha256.ComputeHash(keyBytes);
+            Array.Resize(ref hash, requiredLength);
+            return hash;
+        }
     }
 
-    private void Log(string message)
-    {
-        string logEntry = $"[{DateTime.Now}] {message}";
-        File.AppendAllText(_logFilePath, logEntry + Environment.NewLine);
-        _logTextBox?.AppendText(logEntry + Environment.NewLine);
-    }
     public void BindAlgorithms(ComboBox comboBox)
     {
         comboBox.DataSource = Enum.GetValues(typeof(EncryptionAlgorithm));
@@ -164,6 +181,7 @@ public class EncryptionManager
     {
         byte[] data = ReadFile(filePath);
         byte[] processedData;
+
         switch (algorithm)
         {
             case EncryptionAlgorithm.AES:
@@ -173,7 +191,7 @@ public class EncryptionManager
                 processedData = encrypt ? DESEncrypt(data, key) : DESDecrypt(data, key);
                 break;
             case EncryptionAlgorithm.XOR:
-                processedData = XORCrypt(data, key);
+                processedData = XORCrypt(data, key); 
                 break;
             default:
                 throw new ArgumentException("Неизвестный алгоритм");
