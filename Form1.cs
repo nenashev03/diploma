@@ -9,6 +9,7 @@ namespace diplom
         private readonly EncryptionManager _manager;
         public Form1()
         {
+
             InitializeComponent();
             this.Controls.Add(txtLog);
             _manager = new EncryptionManager(message =>
@@ -22,13 +23,16 @@ namespace diplom
                     AppendLog(message);
                 }
             });
+            textBox2.Clear();
+            textBox3.Clear();
+            textBox1.Visible=false;
+            textBox2.Visible = false;
             cmb.DataSource = Enum.GetValues(typeof(EncryptionAlgorithm));
             cmb.SelectedIndex = 0;
-            radioButton1.Text = "Шифрование";
-            radioButton2.Text = "Дешифрование";
             checkBox1.Text = "Перезаписать исходный файл";
-            //radioButton1.Checked = true;
             button4.Enabled = false;
+            richTextBox1.ReadOnly = true;
+            richTextBox2.ReadOnly = true;
         }
         private void AppendLog(string message)
         {
@@ -73,14 +77,35 @@ namespace diplom
                 }
             }
             button4.Enabled = true;
+            textBox1.Visible = true;
+            button1.Visible = false;
         }
 
         private void button4_Click(object sender, EventArgs e)
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            string folderPath = textBox1.Text;
+
+            if (!Directory.Exists(folderPath))
             {
-                textBox2.Text = openFileDialog.FileName;
+                MessageBox.Show("Сначала выберите корректную папку.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            else
+            {
+                OpenFileDialog openFileDialog = new OpenFileDialog();
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string fullFilePath = openFileDialog.FileName;
+                    textBox2.Text = fullFilePath;
+                    string pathu = fullFilePath;
+                    textBox2.Text = Path.GetDirectoryName(pathu); // путь к папке
+                    SetFileNameOnly(pathu); // только имя файла с расширением
+
+                    DisplayFileContent(fullFilePath, richTextBox1);
+                    textBox4.Text = fullFilePath;
+                }
+                textBox2.Visible = true;
+                button4.Visible = false;
             }
         }
 
@@ -100,8 +125,8 @@ namespace diplom
                 }
 
                 var algorithm = (EncryptionAlgorithm)cmb.SelectedItem;
-                _manager.Process(
-                    textBox2.Text,
+                string outputPath= _manager.Process(
+                    textBox4.Text,
                     textBox3.Text,
                     algorithm,
                     encrypt: true,
@@ -112,8 +137,10 @@ namespace diplom
             {
                 AppendLog($"Критическая ошибка: {ex.Message}");
             }
-            ResetRadioButtons();
-
+            button1.Visible = true;
+            button4.Visible = true;
+            textBox1 .Visible = false;
+            textBox2.Visible = false;
         }
 
         private string GenerateRandomKey(int length)
@@ -122,32 +149,6 @@ namespace diplom
             var random = new Random();
             return new string(Enumerable.Repeat(chars, length)
                 .Select(s => s[random.Next(s.Length)]).ToArray());
-        }
-
-        private void radioButton2_CheckedChanged(object sender, EventArgs e)
-        {
-            // Если выбрано "Дешифрование"
-            if (radioButton2.Checked)
-            {
-                radioButton1.Enabled = false;
-                radioButton2.Enabled = true;
-            }
-           
-        }
-
-        private bool IsKeyValidForDecryption(string key, EncryptionAlgorithm algorithm)
-        {
-            switch (algorithm)
-            {
-                case EncryptionAlgorithm.AES:
-                    return key.Length >= 16; // AES-128 требует минимум 16 байт
-                case EncryptionAlgorithm.DES:
-                    return key.Length >= 8; // DES требует 8 байт
-                case EncryptionAlgorithm.XOR:
-                    return !string.IsNullOrEmpty(key); // XOR работает с любым ключом
-                default:
-                    return false;
-            }
         }
 
         private void button5_Click(object sender, EventArgs e)
@@ -161,8 +162,8 @@ namespace diplom
                 }
 
                 var algorithm = (EncryptionAlgorithm)cmb.SelectedItem;
-                _manager.Process(
-                    textBox2.Text,
+                string outputPath=_manager.Process(
+                    textBox4.Text,
                     textBox3.Text,
                     algorithm,
                     encrypt: false,
@@ -174,33 +175,55 @@ namespace diplom
             {
                 MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            ResetRadioButtons();
+            button1.Visible = true;
+            button4.Visible = true;
+            textBox1.Visible = false;
+            textBox2.Visible = false;
 
         }
 
-        private void radioButton1_CheckedChanged(object sender, EventArgs e)
-        {
-            // Если выбрано "Шифрование"
-            if (radioButton1.Checked)
-            {
-                radioButton1.Enabled = true;
-                radioButton2.Enabled = false;
-            }
-        }
 
         private void checkBox1_CheckedChanged(object sender, EventArgs e)
         {
 
         }
-        private void ResetRadioButtons()
-        {
-            radioButton1.Checked = false;
-            radioButton2.Checked = false;
-
-            // Блокируем кнопки пока операция не выбрана
-           button2.Enabled = true;
-            button5.Enabled = true;
-        }
         
+
+        private void richTextBox2_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void richTextBox1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+        private void DisplayFileContent(string filePath, RichTextBox richTextBox)
+        {
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                     string content = File.ReadAllText(filePath);
+                        richTextBox.Invoke((MethodInvoker)(() =>
+                        {
+                            richTextBox.Text = content;
+                        }));
+                    
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Ошибка при чтении файла: {ex.Message}");
+            }
+        }
+        private void SetFileNameOnly(string fullFilePath)
+        {
+            if (!string.IsNullOrEmpty(fullFilePath))
+            {
+                string fileName = "\\" + Path.GetFileName(fullFilePath); // добавляем ведущий \
+                textBox2.Text = fileName;
+            }
+        }
     }
 }
