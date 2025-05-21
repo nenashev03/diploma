@@ -228,7 +228,7 @@
             // 
             richTextBox1.Location = new Point(406, 32);
             richTextBox1.Name = "richTextBox1";
-            richTextBox1.Size = new Size(459, 259);
+            richTextBox1.Size = new Size(459, 458);
             richTextBox1.TabIndex = 25;
             richTextBox1.Text = "";
             richTextBox1.TextChanged += richTextBox1_TextChanged;
@@ -244,7 +244,7 @@
             // 
             // textBox4
             // 
-            textBox4.Location = new Point(299, 506);
+            textBox4.Location = new Point(895, 575);
             textBox4.Name = "textBox4";
             textBox4.Size = new Size(125, 27);
             textBox4.TabIndex = 27;
